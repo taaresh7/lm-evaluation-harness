@@ -1,0 +1,23 @@
+
+task: factcc
+dataset_path: innodatalabs/rt-factcc
+dataset_name: null
+output_type: multiple_choice
+training_split: train
+validation_split: null
+test_split: test
+doc_to_text: prompt
+# True = entailment
+# False = contradiction
+# Neither = neutral
+doc_to_target: gold
+doc_to_choice: choices
+should_decontaminate: false
+doc_to_decontamination_query: prompt
+process_docs: !function utils.process_docs
+metric_list:
+  - metric: acc
+    aggregation: mean
+    higher_is_better: true
+metadata:
+  version: 1.0
