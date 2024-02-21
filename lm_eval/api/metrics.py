@@ -3,6 +3,10 @@ import math
 import random
 from collections.abc import Iterable
 from typing import List
+import re
+import string
+
+_RE_PUNCT = "[" + re.escape(string.punctuation) + "]"
 
 import numpy as np
 import sacrebleu
@@ -13,6 +17,55 @@ from lm_eval.api.registry import register_aggregation, register_metric
 
 
 eval_logger = logging.getLogger("lm-eval")
+def match_engine( expected: str, actual: str) -> float:
+
+    def normalize_string(
+        input: str,
+        *,
+        to_lower=False,
+        strip_articles=False,
+        strip_punct=False,
+        normalize_whitespace=False,
+    ) -> str:
+        if to_lower:
+            input = input.lower()
+
+        if strip_articles:
+            input = re.sub(r"\b(a|an|the)\b", " ", input, flags=re.IGNORECASE)
+
+        if strip_punct:
+            input = re.sub(_RE_PUNCT, "", input)
+
+        if normalize_whitespace:
+            input = re.sub(r"\s+", " ", input).strip()
+
+        return input
+
+
+    def _to_string_with_word_guards(string):
+        wg = "\x01"  # word guard (something that should never happen in the input string)
+        assert wg not in string
+
+        return wg + wg.join(string.split()) + wg
+    
+    expected = normalize_string(
+        expected,
+        to_lower=True,
+        strip_punct=True,
+        normalize_whitespace=True,
+    )
+    
+    actual = normalize_string(
+        actual,
+        to_lower=True,
+        strip_punct=True,
+        normalize_whitespace=True,
+    )
+
+    guarded_expected = _to_string_with_word_guards(expected)
+    guarded_actual = _to_string_with_word_guards(actual)
+    
+    return 1.0 if guarded_expected in guarded_actual else 0.0
 
 
 # Register Aggregations First
@@ -23,6 +76,8 @@ def bypass_agg(arr):
 
 @register_aggregation("mean")
 def mean(arr):
+    print("mean", arr)
+    
     return sum(arr) / len(arr)
 
 
@@ -66,6 +121,20 @@ def matthews_corrcoef(items):
     # print(preds)
     return sklearn.metrics.matthews_corrcoef(golds, preds)
 
+@register_metric(metric = "contains",
+    higher_is_better=True,
+    output_type=["generate_until"],
+    aggregation = "mean")
+def contains(items):
+    
+    print("golds", items)
+
+    # print(preds)
+    
+    ans = match_engine(items[0],items[1])
+    print("ans", ans)
+    print("ans",  type(ans))
+    return ans
 
 @register_aggregation("bleu")
 def bleu(items):
@@ -488,3 +557,11 @@ def aggregate_subtask_metrics(metrics, sizes, weight_by_size=True):
     assert len(metrics) == len(sizes)
 
     return sum([metric * size for metric, size in zip(metrics, sizes)]) / sum(sizes)
+import re
+import string
+
+_RE_PUNCT = "[" + re.escape(string.punctuation) + "]"
+
+
+
+
